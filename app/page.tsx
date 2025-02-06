@@ -1,10 +1,11 @@
 import { Header } from '@/components/ui/header'
+import { existsSync } from 'fs'
 import { readdir } from 'fs/promises'
-import { FileText, Home, Languages, Settings, ShoppingCart, Users } from 'lucide-react'
+import { FileText, Home, Languages, LucideIcon, Settings, ShoppingCart, Users } from 'lucide-react'
 import Link from 'next/link'
 import path from 'path'
 
-const pageIcons: Record<string, any> = {
+const pageIcons: Record<string, LucideIcon> = {
   'users': Users,
   'settings': Settings,
   'home': Home,
@@ -31,7 +32,7 @@ export default async function StartPage() {
     .filter(entry => {
       const pageFile = path.join(pagesDirectory, entry.name, 'page.tsx')
       try {
-        return require('fs').existsSync(pageFile)
+        return existsSync(pageFile)
       } catch {
         return false
       }
