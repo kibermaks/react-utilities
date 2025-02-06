@@ -2,14 +2,22 @@
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Header } from '@/components/ui/header';
-import { Trophy } from 'lucide-react';
-import { useState } from 'react';
+import { Languages, Trophy } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 const DuolingoPointTracker = () => {
   const [startingPoints, setStartingPoints] = useState<number>(0);
   const [currentMonth, setCurrentMonth] = useState<number>(() => new Date().getMonth() + 1);
   const [currentYear, setCurrentYear] = useState(() => new Date().getFullYear());
   const [customPoints, setCustomPoints] = useState<{ [key: string]: number }>({});
+  const [pages, setPages] = useState<string[]>([]);
+
+  useEffect(() => {
+    // Fetch pages from the API
+    fetch('/api/pages')
+      .then(res => res.json())
+      .then(data => setPages(data.pages));
+  }, []);
 
   const generateMonthlyCalendar = () => {
     const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
@@ -64,7 +72,11 @@ const DuolingoPointTracker = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
-      <Header title="Duolingo Point Tracker" />
+      <Header 
+        title="Duolingo Point Tracker" 
+        icon={<Languages className="w-6 h-6" />}
+        pages={pages}
+      />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <Card className="w-full max-w-2xl mx-auto">
           <CardContent className="p-6">
