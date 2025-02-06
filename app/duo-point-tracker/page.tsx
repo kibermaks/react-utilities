@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react';
 const DuolingoPointTracker = () => {
   const [startingPoints, setStartingPoints] = useState<number>(0);
   const [currentMonth, setCurrentMonth] = useState<number>(() => new Date().getMonth() + 1);
-  const [currentYear, setCurrentYear] = useState(() => new Date().getFullYear());
+  const [currentYear] = useState(() => new Date().getFullYear());
   const [customPoints, setCustomPoints] = useState<{ [key: string]: number }>({});
   const [pages, setPages] = useState<string[]>([]);
 
@@ -22,7 +22,7 @@ const DuolingoPointTracker = () => {
   const generateMonthlyCalendar = () => {
     const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
     
-    let calendar = [];
+    const calendar = [];
     let currentPoints = startingPoints;
     let weeklyChallengeDone = false;
     let goalCompletionDay = null;
@@ -32,7 +32,7 @@ const DuolingoPointTracker = () => {
       const isDayOfWeek = currentDate.getDay() === 2; // Tuesday
       
       const dateKey = `${currentYear}-${currentMonth}-${day}`;
-      let dailyPoints = customPoints[dateKey] ?? 3;
+      const dailyPoints = customPoints[dateKey] ?? 3;
       let weeklyBonus = 0;
       
       if (isDayOfWeek && !weeklyChallengeDone) {
