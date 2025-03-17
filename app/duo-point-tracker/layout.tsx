@@ -11,7 +11,7 @@ export const metadata: Metadata = {
       {
         url: '/duo-point-tracker/icon.png',
         type: 'image/png',
-        sizes: '32x32',
+        sizes: 'any',
       },
     ],
   },
