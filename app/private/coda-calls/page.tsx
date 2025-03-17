@@ -238,7 +238,7 @@ function CodaCallsContent() {
     setCallData(prev => ({ ...prev, way }));
   }, []);
 
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     try {
       if (!isFormValid) {
         return;
@@ -302,7 +302,7 @@ function CodaCallsContent() {
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [isFormValid, callData, searchParams]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -317,7 +317,7 @@ function CodaCallsContent() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isFormValid, isSubmitting]);
+  }, [isFormValid, isSubmitting, handleSubmit]);
 
   if (error) {
     return (

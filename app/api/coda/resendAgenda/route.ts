@@ -5,7 +5,7 @@ const CODA_API_TOKEN = process.env.CODA_API_TOKEN;
 const CODA_DOC_ID = process.env.CODA_DOC_ID;
 const CODA_RULE_ID_AGENDA = process.env.CODA_RULE_ID_AGENDA;
 
-export async function GET(request: Request) {
+export async function POST(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const accessSecret = searchParams.get('s');
