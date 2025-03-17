@@ -544,6 +544,7 @@ function CodaCallsContent() {
                 placeholder="Add any notes about the call..."
                 maxLength={1000}
                 tabIndex={0}
+                autoComplete="on"
               />
               {validationErrors.comments && (
                 <p className="text-red-500 text-sm mt-1">{validationErrors.comments}</p>
