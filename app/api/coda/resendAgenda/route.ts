@@ -1,3 +1,4 @@
+'use server';
 import { validateCodaAccess } from '@/app/lib/coda';
 import { NextResponse } from 'next/server';
 
