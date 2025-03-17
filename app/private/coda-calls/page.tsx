@@ -16,6 +16,7 @@ interface CallData {
   dateTime: string;
   rowId: string;
   eventId: string;
+  occasionId?: string;
   callType: 'Regular' | 'Incoming' | 'Incoming(Event)' | 'Skip' | 'Event';
   way: 'Voice' | 'Messenger' | 'Video' | 'In person';
 }
@@ -39,6 +40,8 @@ function CodaCallsContent() {
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
   const [isFormValid, setIsFormValid] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [callData, setCallData] = useState<CallData>({
     name: '',
     duration: 5,
@@ -47,6 +50,7 @@ function CodaCallsContent() {
     dateTime: new Date().toISOString().slice(0, 16),
     rowId: '',
     eventId: '',
+    occasionId: '',
     callType: 'Regular',
     way: 'Voice',
   });
@@ -62,8 +66,7 @@ function CodaCallsContent() {
       const eventId = searchParams.get('e') || searchParams.get('EventID');
       const dateTime = searchParams.get('dt');
       const way = searchParams.get('w') as 'Voice' | 'Messenger' | 'Video' | 'In person' | null;
-
-    //   console.log('URL Parameters:', { name, accessSecret, rowId, callType, duration, comments, eventId });
+      const occasionId = searchParams.get('o') || searchParams.get('OccasionID');
 
       if (!accessSecret) {
         setError('Missing access secret');
@@ -73,6 +76,16 @@ function CodaCallsContent() {
       if (!rowId) {
         setError('Missing RowID parameter');
         return;
+      }
+
+      // Check if this occasion was already logged
+      if (occasionId) {
+        const loggedOccasions = JSON.parse(localStorage.getItem('loggedOccasions') || '{}');
+        const occasionHash = `${rowId}-${occasionId}`;
+        if (loggedOccasions[occasionHash]) {
+          setShowDuplicateModal(true);
+          return;
+        }
       }
 
       const parsedDuration = duration ? parseInt(duration) : null;
@@ -87,7 +100,6 @@ function CodaCallsContent() {
           if (isNaN(dt.getTime())) {
             throw new Error('Invalid date format');
           }
-          // If only date part is provided (no time), use current local time
           if (!dateTime.includes('T')) {
             const now = new Date();
             dt.setHours(now.getHours());
@@ -109,13 +121,12 @@ function CodaCallsContent() {
           comments: comments ? decodeURIComponent(comments) : prev.comments,
           eventId: eventId || prev.eventId,
           dateTime: parsedDateTime,
-          way: way || prev.way
+          way: way || prev.way,
+          occasionId: occasionId || prev.occasionId
         };
-        console.log('Updated callData:', newData);
         return newData;
       });
 
-      // Handle custom duration UI state
       if (isCustomDuration) {
         setShowCustomDuration(true);
         setCustomDuration(parsedDuration);
@@ -169,12 +180,6 @@ function CodaCallsContent() {
       errors.comments = 'Comments cannot exceed 10000 characters';
       isValid = false;
     }
-
-    // console.log('Form Validation:', {
-    //   callData,
-    //   errors,
-    //   isValid
-    // });
 
     setValidationErrors(errors);
     return isValid;
@@ -257,10 +262,24 @@ function CodaCallsContent() {
         },
         accessSecret
       );
-      // Show confetti
+
+      // Store the logged occasion if occasionId exists
+      if (callData.occasionId) {
+        const loggedOccasions = JSON.parse(localStorage.getItem('loggedOccasions') || '{}');
+        const occasionHash = `${callData.rowId}-${callData.occasionId}`;
+        loggedOccasions[occasionHash] = new Date().toISOString();
+        localStorage.setItem('loggedOccasions', JSON.stringify(loggedOccasions));
+      }
+
+      // Show success modal and confetti
+      setShowSuccessModal(true);
       setShowConfetti(true);
-      setTimeout(() => setShowConfetti(false), 5000); // Hide after 5 seconds
-      // Reset form or show success message
+      setTimeout(() => {
+        setShowConfetti(false);
+        setShowSuccessModal(false);
+      }, 5000);
+
+      // Reset form
       setCallData({
         name: "",
         duration: 5,
@@ -270,6 +289,7 @@ function CodaCallsContent() {
         rowId: "",
         callType: "Regular",
         eventId: "",
+        occasionId: "",
         way: "Voice",
       });
       setShowCustomDuration(false);
@@ -307,6 +327,47 @@ function CodaCallsContent() {
           onConfettiComplete={() => setShowConfetti(false)}
         />
       )}
+      
+      {/* Duplicate Modal */}
+      {showDuplicateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader>
+              <CardTitle className="text-xl text-center text-red-600">Already Logged</CardTitle>
+            </CardHeader>
+            <CardContent className="text-center">
+              <p className="mb-4">You have already logged this occasion.</p>
+              <button
+                onClick={() => setShowDuplicateModal(false)}
+                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+              >
+                Close
+              </button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader>
+              <CardTitle className="text-xl text-center text-green-600">Success!</CardTitle>
+            </CardHeader>
+            <CardContent className="text-center">
+              <p className="mb-4">Thank you! Your call has been logged successfully.</p>
+              <button
+                onClick={() => setShowSuccessModal(false)}
+                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+              >
+                Close
+              </button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       <Header title="Coda Calls" icon={<Phone className="w-6 h-6" />} />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <Card className="w-full max-w-2xl mx-auto">
@@ -412,7 +473,7 @@ function CodaCallsContent() {
                         : 'bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700'
                     }`}
                   >
-                    {minutes === 'custom' ? 'Custom' : `${minutes} mins`}
+                    {minutes === 'custom' ? 'Custom' : `${minutes} min${minutes === 1 ? '' : 's'}`}
                   </button>
                 ))}
               </div>
