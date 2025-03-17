@@ -304,6 +304,21 @@ function CodaCallsContent() {
     }
   };
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check for Command+Enter (Mac) or Ctrl+Enter (Windows/Linux)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault();
+        if (isFormValid && !isSubmitting) {
+          handleSubmit();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFormValid, isSubmitting]);
+
   if (error) {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
