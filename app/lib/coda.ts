@@ -42,6 +42,7 @@ export async function createCodaRow(data: {
   dateTime: string;
   callType: string;
   rowId: string;
+  eventId: string;
 }, accessSecret: string | null) {
   try {
     console.log('Creating Coda row with data:', data, 'and access secret:', accessSecret);
@@ -55,6 +56,10 @@ export async function createCodaRow(data: {
       throw new Error('Missing Coda configuration');
     }
 
+    if (data.callType !== 'Event' && data.eventId && data.eventId !== '') {
+      data.eventId = '';
+    }
+
     const requestBody = {
       rows: [
         {
@@ -65,6 +70,7 @@ export async function createCodaRow(data: {
             { column: 'c-9Acs_yErGs', value: data.comments }, //Notes
             { column: 'c-YDhAlgAVS4', value: data.dateTime }, //Report Date
             { column: 'c-4ji9x8bZNi', value: CALL_TYPE_MAPPING[data.callType] || data.callType }, //Call Type
+            ...(data.eventId ? [{ column: 'c-bwZcHIUpy-', value: data.eventId }] : []), //Event ID
           ],
         },
       ],

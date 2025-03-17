@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Header } from '@/components/ui/header';
 import { Phone } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import ReactConfetti from 'react-confetti';
 
 interface CallData {
@@ -15,7 +15,8 @@ interface CallData {
   comments: string;
   dateTime: string;
   rowId: string;
-  callType: 'Regular' | 'Incoming' | 'Incoming(Event)' | 'Skip';
+  eventId: string;
+  callType: 'Regular' | 'Incoming' | 'Incoming(Event)' | 'Skip' | 'Event';
 }
 
 interface ValidationErrors {
@@ -27,7 +28,7 @@ interface ValidationErrors {
   callType?: string;
 }
 
-export default function CodaCallsPage() {
+function CodaCallsContent() {
   const searchParams = useSearchParams();
   const customDurationRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +44,7 @@ export default function CodaCallsPage() {
     comments: '',
     dateTime: new Date().toISOString().slice(0, 16),
     rowId: '',
+    eventId: '',
     callType: 'Regular',
   });
 
@@ -54,8 +56,9 @@ export default function CodaCallsPage() {
       const callType = searchParams.get('t') as 'Regular' | 'Incoming' | 'Incoming(Event)' | 'Skip' | null;
       const duration = searchParams.get('d');
       const comments = searchParams.get('c');
+      const eventId = searchParams.get('e') || searchParams.get('EventID');
 
-      console.log('URL Parameters:', { name, accessSecret, rowId, callType, duration, comments });
+    //   console.log('URL Parameters:', { name, accessSecret, rowId, callType, duration, comments, eventId });
 
       if (!accessSecret) {
         setError('Missing access secret');
@@ -76,9 +79,10 @@ export default function CodaCallsPage() {
           ...prev, 
           name: name ? decodeURIComponent(name) : prev.name,
           rowId,
-          callType: callType || prev.callType,
+          callType: eventId ? 'Event' : (callType || prev.callType),
           duration: parsedDuration || prev.duration,
-          comments: comments ? decodeURIComponent(comments) : prev.comments
+          comments: comments ? decodeURIComponent(comments) : prev.comments,
+          eventId: eventId || prev.eventId
         };
         console.log('Updated callData:', newData);
         return newData;
@@ -139,11 +143,11 @@ export default function CodaCallsPage() {
       isValid = false;
     }
 
-    console.log('Form Validation:', {
-      callData,
-      errors,
-      isValid
-    });
+    // console.log('Form Validation:', {
+    //   callData,
+    //   errors,
+    //   isValid
+    // });
 
     setValidationErrors(errors);
     return isValid;
@@ -193,7 +197,7 @@ export default function CodaCallsPage() {
     setCallData(prev => ({ ...prev, comments: e.target.value }));
   }, []);
 
-  const handleCallTypeChange = useCallback((type: 'Regular' | 'Incoming' | 'Incoming(Event)' | 'Skip') => {
+  const handleCallTypeChange = useCallback((type: 'Regular' | 'Incoming' | 'Incoming(Event)' | 'Skip' | 'Event') => {
     setCallData(prev => ({ ...prev, callType: type }));
   }, []);
 
@@ -217,6 +221,7 @@ export default function CodaCallsPage() {
 				dateTime: callData.dateTime,
 				callType: callData.callType,
 				rowId: callData.rowId,
+				eventId: callData.eventId,
 			},
 			accessSecret
 		);
@@ -232,6 +237,7 @@ export default function CodaCallsPage() {
 			dateTime: new Date().toISOString().slice(0, 16),
 			rowId: "",
 			callType: "Regular",
+			eventId: "",
 		});
 		setShowCustomDuration(false);
 		setCustomDuration(null);
@@ -279,7 +285,9 @@ export default function CodaCallsPage() {
           <CardContent className="space-y-6">
             {/* Call Type Radio Group */}
             <div className="flex" role="radiogroup" aria-label="Call Type">
-              {(['Regular', 'Incoming', 'Incoming(Event)', 'Skip'] as const).map((type, index) => (
+              {((callData.eventId 
+                ? ['Event', 'Incoming', 'Incoming(Event)', 'Skip'] 
+                : ['Regular', 'Incoming', 'Incoming(Event)', 'Skip']) as Array<'Regular' | 'Incoming' | 'Incoming(Event)' | 'Skip' | 'Event'>).map((type, index) => (
                 <button
                   key={type}
                   onClick={() => handleCallTypeChange(type)}
@@ -294,9 +302,11 @@ export default function CodaCallsPage() {
                     callData.callType === type
                       ? type === 'Regular'
                         ? 'bg-gray-500 text-white'
-                        : type === 'Incoming' || type === 'Incoming(Event)'
-                          ? 'bg-green-500 text-white'
-                          : 'bg-red-500 text-white'
+                        : type === 'Event'
+                          ? 'bg-purple-500 text-white'
+                          : type === 'Incoming' || type === 'Incoming(Event)'
+                            ? 'bg-green-500 text-white'
+                            : 'bg-red-500 text-white'
                       : 'bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700'
                   } border ${
                     index === 0 ? 'border-r-0' : ''
@@ -421,5 +431,24 @@ export default function CodaCallsPage() {
         </Card>
       </main>
     </div>
+  );
+}
+
+export default function CodaCallsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+        <Header title="Coda Calls" icon={<Phone className="w-6 h-6" />} />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+          <Card className="w-full max-w-2xl mx-auto">
+            <CardContent className="p-6">
+              <div className="text-center">Loading...</div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    }>
+      <CodaCallsContent />
+    </Suspense>
   );
 } 
