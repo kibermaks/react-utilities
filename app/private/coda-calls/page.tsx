@@ -57,6 +57,7 @@ function CodaCallsContent() {
       const duration = searchParams.get('d');
       const comments = searchParams.get('c');
       const eventId = searchParams.get('e') || searchParams.get('EventID');
+      const dateTime = searchParams.get('dt');
 
     //   console.log('URL Parameters:', { name, accessSecret, rowId, callType, duration, comments, eventId });
 
@@ -74,6 +75,26 @@ function CodaCallsContent() {
       const standardDurations = [1, 3, 5, 10, 20, 30, 45, 60];
       const isCustomDuration = parsedDuration !== null && !standardDurations.includes(parsedDuration);
 
+      // Handle date/time override
+      let parsedDateTime = new Date().toISOString().slice(0, 16);
+      if (dateTime) {
+        try {
+          const dt = new Date(dateTime);
+          if (isNaN(dt.getTime())) {
+            throw new Error('Invalid date format');
+          }
+          // If only date part is provided (no time), use current local time
+          if (!dateTime.includes('T')) {
+            const now = new Date();
+            dt.setHours(now.getHours());
+            dt.setMinutes(now.getMinutes());
+          }
+          parsedDateTime = dt.toISOString().slice(0, 16);
+        } catch (err) {
+          console.error('Error parsing date:', err);
+        }
+      }
+
       setCallData(prev => {
         const newData = { 
           ...prev, 
@@ -82,7 +103,8 @@ function CodaCallsContent() {
           callType: eventId ? 'Event' : (callType || prev.callType),
           duration: parsedDuration || prev.duration,
           comments: comments ? decodeURIComponent(comments) : prev.comments,
-          eventId: eventId || prev.eventId
+          eventId: eventId || prev.eventId,
+          dateTime: parsedDateTime
         };
         console.log('Updated callData:', newData);
         return newData;
