@@ -30,6 +30,7 @@ The page accepts the following URL parameters:
 - `t` or `callType`: Type of call (Regular, Incoming, Incoming(Event), Skip)
 - `d` or `duration`: Call duration in minutes
 - `c` or `comments`: Comments about the call
+- `w` or `way`: Way of communication (Voice, Messenger, Video, In person) - defaults to Voice
 
 ### Example URLs
 
@@ -38,10 +39,10 @@ The page accepts the following URL parameters:
 /private/coda-calls?s=xxx&r=123
 
 # Full usage with all parameters
-/private/coda-calls?s=xxx&r=123&n=John%20Doe&t=Regular&d=15&c=Follow-up%20call
+/private/coda-calls?s=xxx&r=123&n=John%20Doe&t=Regular&d=15&c=Follow-up%20call&w=Video
 
 # Short parameter version
-/private/coda-calls?s=xxx&r=123&n=John%20Doe&t=Regular&d=15&c=Follow-up%20call
+/private/coda-calls?s=xxx&r=123&n=John%20Doe&t=Regular&d=15&c=Follow-up%20call&w=Video
 ```
 
 ## Form Validation
@@ -65,6 +66,14 @@ Note: Call type defaults to 'Regular' if not specified.
   - Incoming (green)
   - Incoming(Event) (green)
   - Skip (red)
+
+### Way Selection
+
+- Radio button group with 4 options:
+  - Voice (default)
+  - Messenger
+  - Video
+  - In person
 
 ### Duration Selection
 

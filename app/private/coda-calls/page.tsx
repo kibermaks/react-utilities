@@ -17,6 +17,7 @@ interface CallData {
   rowId: string;
   eventId: string;
   callType: 'Regular' | 'Incoming' | 'Incoming(Event)' | 'Skip' | 'Event';
+  way: 'Voice' | 'Messenger' | 'Video' | 'In person';
 }
 
 interface ValidationErrors {
@@ -26,6 +27,7 @@ interface ValidationErrors {
   comments?: string;
   rowId?: string;
   callType?: string;
+  way?: string;
 }
 
 function CodaCallsContent() {
@@ -46,6 +48,7 @@ function CodaCallsContent() {
     rowId: '',
     eventId: '',
     callType: 'Regular',
+    way: 'Voice',
   });
 
   useEffect(() => {
@@ -58,6 +61,7 @@ function CodaCallsContent() {
       const comments = searchParams.get('c');
       const eventId = searchParams.get('e') || searchParams.get('EventID');
       const dateTime = searchParams.get('dt');
+      const way = searchParams.get('w') as 'Voice' | 'Messenger' | 'Video' | 'In person' | null;
 
     //   console.log('URL Parameters:', { name, accessSecret, rowId, callType, duration, comments, eventId });
 
@@ -104,7 +108,8 @@ function CodaCallsContent() {
           duration: parsedDuration || prev.duration,
           comments: comments ? decodeURIComponent(comments) : prev.comments,
           eventId: eventId || prev.eventId,
-          dateTime: parsedDateTime
+          dateTime: parsedDateTime,
+          way: way || prev.way
         };
         console.log('Updated callData:', newData);
         return newData;
@@ -223,48 +228,54 @@ function CodaCallsContent() {
     setCallData(prev => ({ ...prev, callType: type }));
   }, []);
 
+  const handleWayChange = useCallback((way: 'Voice' | 'Messenger' | 'Video' | 'In person') => {
+    setCallData(prev => ({ ...prev, way }));
+  }, []);
+
   const handleSubmit = async () => {
     try {
-		if (!isFormValid) {
-			return;
-		}
+      if (!isFormValid) {
+        return;
+      }
 
-		const accessSecret = searchParams.get("access_secret");
-		if (!accessSecret) {
-			throw new Error("Missing access secret");
-		}
+      const accessSecret = searchParams.get('s') || searchParams.get('access_secret');
+      if (!accessSecret) {
+        throw new Error("Missing access secret");
+      }
 
-		await createCodaRow(
-			{
-				name: callData.name,
-				duration: callData.duration,
-				rating: callData.rating,
-				comments: callData.comments,
-				dateTime: callData.dateTime,
-				callType: callData.callType,
-				rowId: callData.rowId,
-				eventId: callData.eventId,
-			},
-			accessSecret
-		);
-		// Show confetti
-		setShowConfetti(true);
-		setTimeout(() => setShowConfetti(false), 5000); // Hide after 5 seconds
-		// Reset form or show success message
-		setCallData({
-			name: "",
-			duration: 5,
-			rating: 5,
-			comments: "",
-			dateTime: new Date().toISOString().slice(0, 16),
-			rowId: "",
-			callType: "Regular",
-			eventId: "",
-		});
-		setShowCustomDuration(false);
-		setCustomDuration(null);
-		setValidationErrors({});
-	} catch (err) {
+      await createCodaRow(
+        {
+          name: callData.name,
+          duration: callData.duration,
+          rating: callData.rating,
+          comments: callData.comments,
+          dateTime: callData.dateTime,
+          callType: callData.callType,
+          rowId: callData.rowId,
+          eventId: callData.eventId,
+          way: callData.way,
+        },
+        accessSecret
+      );
+      // Show confetti
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 5000); // Hide after 5 seconds
+      // Reset form or show success message
+      setCallData({
+        name: "",
+        duration: 5,
+        rating: 5,
+        comments: "",
+        dateTime: new Date().toISOString().slice(0, 16),
+        rowId: "",
+        callType: "Regular",
+        eventId: "",
+        way: "Voice",
+      });
+      setShowCustomDuration(false);
+      setCustomDuration(null);
+      setValidationErrors({});
+    } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     }
   };
@@ -305,64 +316,106 @@ function CodaCallsContent() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Call Type Radio Group */}
-            <div className="flex" role="radiogroup" aria-label="Call Type">
-              {((callData.eventId 
-                ? ['Event', 'Incoming', 'Incoming(Event)', 'Skip'] 
-                : ['Regular', 'Incoming', 'Incoming(Event)', 'Skip']) as Array<'Regular' | 'Incoming' | 'Incoming(Event)' | 'Skip' | 'Event'>).map((type, index) => (
-                <button
-                  key={type}
-                  onClick={() => handleCallTypeChange(type)}
-                  tabIndex={0}
-                  role="radio"
-                  aria-checked={callData.callType === type}
-                  className={`flex-1 py-2 px-4 text-sm font-medium transition-colors ${
-                    index === 0 ? 'rounded-l-lg' : ''
-                  } ${
-                    index === 3 ? 'rounded-r-lg' : ''
-                  } ${
-                    callData.callType === type
-                      ? type === 'Regular'
-                        ? 'bg-gray-500 text-white'
-                        : type === 'Event'
-                          ? 'bg-purple-500 text-white'
-                          : type === 'Incoming' || type === 'Incoming(Event)'
-                            ? 'bg-green-500 text-white'
-                            : 'bg-red-500 text-white'
-                      : 'bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700'
-                  } border ${
-                    index === 0 ? 'border-r-0' : ''
-                  } ${
-                    index === 3 ? 'border-l-0' : ''
-                  }`}
-                >
-                  {type}
-                </button>
-              ))}
+            {/* Call Type Section */}
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Call Type</h3>
+              <div className="flex" role="radiogroup" aria-label="Call Type">
+                {((callData.eventId 
+                  ? ['Event', 'Incoming', 'Incoming(Event)', 'Skip'] 
+                  : ['Regular', 'Incoming', 'Incoming(Event)', 'Skip']) as Array<'Regular' | 'Incoming' | 'Incoming(Event)' | 'Skip' | 'Event'>).map((type, index) => (
+                  <button
+                    key={type}
+                    onClick={() => handleCallTypeChange(type)}
+                    tabIndex={0}
+                    role="radio"
+                    aria-checked={callData.callType === type}
+                    className={`flex-1 py-2 px-4 text-sm font-medium transition-colors ${
+                      index === 0 ? 'rounded-l-lg' : ''
+                    } ${
+                      index === 3 ? 'rounded-r-lg' : ''
+                    } ${
+                      callData.callType === type
+                        ? type === 'Regular'
+                          ? 'bg-gray-500 text-white'
+                          : type === 'Event'
+                            ? 'bg-purple-500 text-white'
+                            : type === 'Incoming' || type === 'Incoming(Event)'
+                              ? 'bg-green-500 text-white'
+                              : 'bg-red-500 text-white'
+                        : 'bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700'
+                    } border ${
+                      index === 0 ? 'border-r-0' : ''
+                    } ${
+                      index === 3 ? 'border-l-0' : ''
+                    }`}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* Duration Buttons */}
-            <div className="grid grid-cols-3 gap-2" role="group" aria-label="Duration">
-              {[1, 3, 5, 10, 20, 30, 45, 60, 'custom'].map((minutes) => (
-                <button
-                  key={minutes}
-                  onClick={() => handleDurationClick(minutes as number | 'custom')}
-                  tabIndex={0}
-                  role="radio"
-                  aria-checked={
-                    (minutes === 'custom' && showCustomDuration) || 
-                    (typeof minutes === 'number' && callData.duration === minutes)
-                  }
-                  className={`p-3 rounded-lg border transition-colors ${
-                    (minutes === 'custom' && showCustomDuration) || 
-                    (typeof minutes === 'number' && callData.duration === minutes)
-                      ? 'bg-blue-500 text-white border-blue-600'
-                      : 'bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  {minutes === 'custom' ? 'Custom' : `${minutes} mins`}
-                </button>
-              ))}
+            {/* Way Section */}
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Way of Communication</h3>
+              <div className="flex" role="radiogroup" aria-label="Way">
+                {([
+                  { value: 'Voice', label: '🎙️ Voice' },
+                  { value: 'Messenger', label: '💬 Messenger' },
+                  { value: 'Video', label: '📹 Video' },
+                  { value: 'In person', label: '👥 In person' }
+                ] as Array<{ value: 'Voice' | 'Messenger' | 'Video' | 'In person', label: string }>).map((way, index) => (
+                  <button
+                    key={way.value}
+                    onClick={() => handleWayChange(way.value)}
+                    tabIndex={0}
+                    role="radio"
+                    aria-checked={callData.way === way.value}
+                    className={`flex-1 py-2 px-4 text-sm font-medium transition-colors ${
+                      index === 0 ? 'rounded-l-lg' : ''
+                    } ${
+                      index === 3 ? 'rounded-r-lg' : ''
+                    } ${
+                      callData.way === way.value
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700'
+                    } border ${
+                      index === 0 ? 'border-r-0' : ''
+                    } ${
+                      index === 3 ? 'border-l-0' : ''
+                    }`}
+                  >
+                    {way.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Duration Section */}
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Duration (minutes)</h3>
+              <div className="grid grid-cols-3 gap-2" role="group" aria-label="Duration">
+                {[1, 3, 5, 10, 20, 30, 45, 60, 'custom'].map((minutes) => (
+                  <button
+                    key={minutes}
+                    onClick={() => handleDurationClick(minutes as number | 'custom')}
+                    tabIndex={0}
+                    role="radio"
+                    aria-checked={
+                      (minutes === 'custom' && showCustomDuration) || 
+                      (typeof minutes === 'number' && callData.duration === minutes)
+                    }
+                    className={`p-3 rounded-lg border transition-colors ${
+                      (minutes === 'custom' && showCustomDuration) || 
+                      (typeof minutes === 'number' && callData.duration === minutes)
+                        ? 'bg-blue-500 text-white border-blue-600'
+                        : 'bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    {minutes === 'custom' ? 'Custom' : `${minutes} mins`}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Custom Duration Input */}
