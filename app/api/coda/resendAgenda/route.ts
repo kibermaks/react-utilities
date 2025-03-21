@@ -21,7 +21,12 @@ export async function GET(request: Request) {
     if (!CODA_API_TOKEN || !CODA_DOC_ID || !CODA_RULE_ID_AGENDA) {
       return NextResponse.json(
         { error: 'Missing Coda configuration' },
-        { status: 500 }
+        { 
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
       );
     }
 
@@ -42,12 +47,24 @@ export async function GET(request: Request) {
       throw new Error(error.message || 'Failed to execute Coda automation rule');
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json(
+      { success: true },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
   } catch (error) {
     console.error('Error executing Coda automation rule:', error);
     return NextResponse.json(
       { error: 'Failed to execute Coda automation rule' },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
     );
   }
 }
