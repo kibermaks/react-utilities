@@ -283,26 +283,13 @@ function CodaCallsContent() {
       setShowSuccessModal(true);
       setShowConfetti(true);
       setIsSqueezed(true);
+
+      // Close the window after a delay
       setTimeout(() => {
         setShowConfetti(false);
+        window.close();
       }, 5000);
 
-      // Reset form
-      setCallData({
-        name: "",
-        duration: 5,
-        rating: 5,
-        comments: "",
-        dateTime: new Date().toISOString().slice(0, 16),
-        rowId: "",
-        callType: "Regular",
-        eventId: "",
-        occasionId: "",
-        way: "Voice",
-      });
-      setShowCustomDuration(false);
-      setCustomDuration(null);
-      setValidationErrors({});
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
