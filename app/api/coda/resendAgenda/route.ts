@@ -52,6 +52,7 @@ export async function GET(request: Request) {
       {
         headers: {
           'Content-Type': 'application/json',
+          'HX-Redirect': 'close'
         },
       }
     );
