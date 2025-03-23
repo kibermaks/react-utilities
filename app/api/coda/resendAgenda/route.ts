@@ -52,7 +52,11 @@ export async function GET(request: Request) {
       {
         headers: {
           'Content-Type': 'application/json',
-          'HX-Redirect': 'close'
+          'HX-Trigger': JSON.stringify({
+            closeWindow: {
+              script: "window.close();"
+            }
+          })
         },
       }
     );
