@@ -111,31 +111,7 @@ function CodaCallsContent() {
         return;
       }
 
-      // Only load friends list if no rowId is provided
-      if (!rowId) {
-        try {
-          setIsLoadingFriends(true);
-          const friendsList = await getCodaFriendsList(accessSecret);
-          setFriends(friendsList);
-          setShowFriendModal(true);
-        } catch (err) {
-          setError(err instanceof Error ? err.message : 'Failed to load friends');
-        } finally {
-          setIsLoadingFriends(false);
-        }
-        return;
-      }
-
-      // Handle occasion checking only when both rowId and occasionId are provided
-      if (rowId && occasionId) {
-        const loggedOccasions = JSON.parse(localStorage.getItem('loggedOccasions') || '{}');
-        const occasionHash = `${rowId}-${occasionId}`;
-        if (loggedOccasions[occasionHash]) {
-          setShowDuplicateModal(true);
-          return;
-        }
-      }
-
+      // Process all parameters first
       const parsedDuration = duration ? parseInt(duration) : null;
       const standardDurations = [1, 3, 5, 10, 20, 30, 45, 60];
       const isCustomDuration = parsedDuration !== null && !standardDurations.includes(parsedDuration);
@@ -159,10 +135,11 @@ function CodaCallsContent() {
         }
       }
 
+      // Update call data with all available parameters
       setCallData(prev => ({
         ...prev,
         name: name ? decodeURIComponent(name) : prev.name,
-        rowId,
+        rowId: rowId || prev.rowId,
         callType: eventId ? 'Event' : (callType || prev.callType),
         duration: parsedDuration || prev.duration,
         comments: comments ? decodeURIComponent(comments) : prev.comments,
@@ -175,6 +152,31 @@ function CodaCallsContent() {
       if (isCustomDuration) {
         setShowCustomDuration(true);
         setCustomDuration(parsedDuration);
+      }
+
+      // Only load friends list if no rowId is provided
+      if (!rowId) {
+        try {
+          setIsLoadingFriends(true);
+          const friendsList = await getCodaFriendsList(accessSecret);
+          setFriends(friendsList);
+          setShowFriendModal(true);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to load friends');
+        } finally {
+          setIsLoadingFriends(false);
+        }
+        return;
+      }
+
+      // Handle occasion checking only when both rowId and occasionId are provided
+      if (rowId && occasionId) {
+        const loggedOccasions = JSON.parse(localStorage.getItem('loggedOccasions') || '{}');
+        const occasionHash = `${rowId}-${occasionId}`;
+        if (loggedOccasions[occasionHash]) {
+          setShowDuplicateModal(true);
+          return;
+        }
       }
     };
 
