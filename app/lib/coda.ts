@@ -13,6 +13,34 @@ const CALL_TYPE_MAPPING: Record<string, string> = {
   'Skip': 'Skip'
 };
 
+// Data interfaces
+interface CodaViewRow {
+  values: {
+    'c-8ct0sIapdx': string;
+    'c-ztqkPoyWJn': string;
+    'c-birJu3yUIo': number;
+  };
+}
+
+interface CodaViewResponse {
+  items: CodaViewRow[];
+}
+
+interface CodaFriend {
+  name: string;
+  rowUid: string;
+  callHistoryCount: number;
+}
+
+// Cache interface
+interface CodaViewCache {
+  data: CodaFriend[];
+  timestamp: number;
+}
+
+const VIEW_CACHE: { [key: string]: CodaViewCache } = {};
+const CACHE_DURATION = 3600000; // 1 hour in milliseconds
+
 export async function validateCodaAccess(accessSecret: string | null) {
   if (!accessSecret || accessSecret !== ACCESS_SECRET) {
     return NextResponse.json(
@@ -100,6 +128,66 @@ export async function createCodaRow(data: {
     return { success: true };
   } catch (error) {
     console.error('Error saving to Coda:', error);
+    throw error;
+  }
+}
+
+export async function getCodaFriendsList(accessSecret: string | null): Promise<CodaFriend[]> {
+  try {
+    // Validate access secret first
+    const accessValidation = await validateCodaAccess(accessSecret);
+    if (accessValidation) {
+      throw new Error('Invalid access secret');
+    }
+
+    if (!CODA_API_TOKEN || !CODA_DOC_ID) {
+      throw new Error('Missing Coda configuration');
+    }
+
+    const viewId = 'table-HBylW1ZEig';
+    
+    // Check cache first
+    const cache = VIEW_CACHE[viewId];
+    const now = Date.now();
+    if (cache && (now - cache.timestamp) < CACHE_DURATION) {
+      return cache.data;
+    }
+
+    // Fetch fresh data if cache is missing or expired
+    const response = await fetch(
+      `https://coda.io/apis/v1/docs/${CODA_DOC_ID}/tables/${viewId}/rows?valueFormat=simple`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${CODA_API_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to fetch view data from Coda');
+    }
+
+    const rawData = await response.json() as CodaViewResponse;
+    
+    // Transform the data to get only the required columns
+    const transformedData = rawData.items.map((item: CodaViewRow) => ({
+      name: item.values['c-8ct0sIapdx'],
+      rowUid: item.values['c-ztqkPoyWJn'],
+      callHistoryCount: item.values['c-birJu3yUIo']
+    }));
+
+    // Update cache
+    VIEW_CACHE[viewId] = {
+      data: transformedData,
+      timestamp: now
+    };
+
+    return transformedData;
+  } catch (error) {
+    console.error('Error fetching Coda view data:', error);
     throw error;
   }
 } 

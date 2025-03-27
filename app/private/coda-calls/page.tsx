@@ -1,12 +1,18 @@
 'use client';
 
-import { createCodaRow } from '@/app/lib/coda';
+import { createCodaRow, getCodaFriendsList } from '@/app/lib/coda';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Header } from '@/components/ui/header';
-import { Phone } from 'lucide-react';
+import { ArrowUpDown, Phone, Search } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactConfetti from 'react-confetti';
+
+interface CodaFriend {
+  name: string;
+  rowUid: string;
+  callHistoryCount: number;
+}
 
 interface CallData {
   name: string;
@@ -45,6 +51,14 @@ function CodaCallsContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSqueezed, setIsSqueezed] = useState(false);
   const isDebug = searchParams.get('debug') === 'true';
+  
+  // Friend selection state
+  const [friends, setFriends] = useState<CodaFriend[]>([]);
+  const [sortOrder, setSortOrder] = useState<'alphabetical' | 'frequency'>('frequency');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isLoadingFriends, setIsLoadingFriends] = useState(false);
+  const [showFriendModal, setShowFriendModal] = useState(false);
+
   const [callData, setCallData] = useState<CallData>({
     name: '',
     duration: 5,
@@ -58,8 +72,29 @@ function CodaCallsContent() {
     way: 'Voice',
   });
 
+  // Sort and filter friends
+  const sortedAndFilteredFriends = useMemo(() => {
+    let filtered = friends;
+    
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(friend => 
+        friend.name.toLowerCase().includes(query)
+      );
+    }
+
+    return [...filtered].sort((a, b) => {
+      if (sortOrder === 'alphabetical') {
+        return a.name.localeCompare(b.name);
+      } else {
+        return b.callHistoryCount - a.callHistoryCount;
+      }
+    });
+  }, [friends, sortOrder, searchQuery]);
+
+  // Initial setup and parameter handling
   useEffect(() => {
-    const getSearchParams = async () => {
+    const setupFromParams = async () => {
       const name = searchParams.get('n') || searchParams.get('Name');
       const accessSecret = searchParams.get('s') || searchParams.get('access_secret');
       const rowId = searchParams.get('r') || searchParams.get('RowID');
@@ -76,13 +111,23 @@ function CodaCallsContent() {
         return;
       }
 
+      // Only load friends list if no rowId is provided
       if (!rowId) {
-        setError('Missing RowID parameter');
+        try {
+          setIsLoadingFriends(true);
+          const friendsList = await getCodaFriendsList(accessSecret);
+          setFriends(friendsList);
+          setShowFriendModal(true);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to load friends');
+        } finally {
+          setIsLoadingFriends(false);
+        }
         return;
       }
 
-      // Check if this occasion was already logged
-      if (occasionId) {
+      // Handle occasion checking only when both rowId and occasionId are provided
+      if (rowId && occasionId) {
         const loggedOccasions = JSON.parse(localStorage.getItem('loggedOccasions') || '{}');
         const occasionHash = `${rowId}-${occasionId}`;
         if (loggedOccasions[occasionHash]) {
@@ -114,21 +159,18 @@ function CodaCallsContent() {
         }
       }
 
-      setCallData(prev => {
-        const newData = { 
-          ...prev, 
-          name: name ? decodeURIComponent(name) : prev.name,
-          rowId,
-          callType: eventId ? 'Event' : (callType || prev.callType),
-          duration: parsedDuration || prev.duration,
-          comments: comments ? decodeURIComponent(comments) : prev.comments,
-          eventId: eventId || prev.eventId,
-          dateTime: parsedDateTime,
-          way: way || prev.way,
-          occasionId: occasionId || prev.occasionId
-        };
-        return newData;
-      });
+      setCallData(prev => ({
+        ...prev,
+        name: name ? decodeURIComponent(name) : prev.name,
+        rowId,
+        callType: eventId ? 'Event' : (callType || prev.callType),
+        duration: parsedDuration || prev.duration,
+        comments: comments ? decodeURIComponent(comments) : prev.comments,
+        eventId: eventId || prev.eventId,
+        dateTime: parsedDateTime,
+        way: way || prev.way,
+        occasionId: occasionId || prev.occasionId
+      }));
 
       if (isCustomDuration) {
         setShowCustomDuration(true);
@@ -136,8 +178,18 @@ function CodaCallsContent() {
       }
     };
 
-    getSearchParams();
+    setupFromParams();
   }, [searchParams]);
+
+  // Handle friend selection
+  const handleFriendSelect = useCallback((friend: CodaFriend) => {
+    setCallData(prev => ({
+      ...prev,
+      name: friend.name,
+      rowId: friend.rowUid
+    }));
+    setShowFriendModal(false);
+  }, []);
 
   const validateForm = useCallback((): boolean => {
     const errors: ValidationErrors = {};
@@ -329,6 +381,60 @@ function CodaCallsContent() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+      {/* Friend Selection Modal */}
+      {showFriendModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-2xl mx-4 max-h-[80vh] flex flex-col">
+            <CardHeader className="flex-none">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-xl">Select Friend</CardTitle>
+                <div className="flex items-center space-x-4">
+                  <button
+                    onClick={() => setSortOrder(prev => 
+                      prev === 'alphabetical' ? 'frequency' : 'alphabetical'
+                    )}
+                    className="flex items-center space-x-1 text-sm text-gray-600 dark:text-gray-300 hover:text-blue-500"
+                  >
+                    <ArrowUpDown className="w-4 h-4" />
+                    <span>{sortOrder === 'alphabetical' ? 'A→Z' : 'Frequency'}</span>
+                  </button>
+                </div>
+              </div>
+              <div className="mt-4 relative">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search friends..."
+                  className="w-full p-2 pr-8 border rounded dark:bg-slate-800"
+                />
+                <Search className="absolute right-2 top-2.5 w-5 h-5 text-gray-400" />
+              </div>
+            </CardHeader>
+            <CardContent className="flex-1 overflow-y-auto">
+              {isLoadingFriends ? (
+                <div className="text-center py-4">Loading friends...</div>
+              ) : (
+                <div className="space-y-2">
+                  {sortedAndFilteredFriends.map(friend => (
+                    <button
+                      key={friend.rowUid}
+                      onClick={() => handleFriendSelect(friend)}
+                      className="w-full p-3 text-left rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors flex items-center justify-between"
+                    >
+                      <span>{friend.name}</span>
+                      <span className="text-sm text-gray-500">
+                        {friend.callHistoryCount} calls
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {showConfetti && (
         <div className="fixed inset-0 pointer-events-none z-50">
           <ReactConfetti
