@@ -216,8 +216,8 @@ function CodaCallsContent() {
       errors.duration = 'Duration must be greater than 0';
       isValid = false;
     }
-    else if (callData.duration > 120) {
-      errors.duration = 'Duration must be less or equal to 120 minutes';
+    else if (callData.duration > 300) {
+      errors.duration = 'Duration must be less or equal to 300 minutes';
       isValid = false;
     }
 
@@ -385,7 +385,7 @@ function CodaCallsContent() {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
       {/* Friend Selection Modal */}
       {showFriendModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed left-0 top-0 right-0 bottom-0 w-full h-full bg-black/50 flex items-center justify-center z-50">
           <Card className="w-full max-w-2xl mx-4 max-h-[80vh] flex flex-col">
             <CardHeader className="flex-none">
               <div className="flex items-center justify-between">
@@ -438,7 +438,7 @@ function CodaCallsContent() {
       )}
 
       {showConfetti && (
-        <div className="fixed inset-0 pointer-events-none z-50">
+        <div className="fixed left-0 top-0 right-0 bottom-0 w-full h-full pointer-events-none z-50">
           <ReactConfetti
             width={window.innerWidth}
             height={window.innerHeight}
@@ -446,14 +446,13 @@ function CodaCallsContent() {
             numberOfPieces={200}
             gravity={0.3}
             onConfettiComplete={() => setShowConfetti(false)}
-            style={{ position: 'fixed', top: 0, left: 0 }}
           />
         </div>
       )}
       
       {/* Duplicate Modal */}
       {showDuplicateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed left-0 top-0 right-0 bottom-0 w-full h-full bg-black/50 flex items-center justify-center z-50">
           <Card className="w-full max-w-md mx-4">
             <CardHeader>
               <CardTitle className="text-xl text-center text-red-600">Already Logged</CardTitle>
@@ -473,7 +472,7 @@ function CodaCallsContent() {
 
       {/* Success Modal */}
       {showSuccessModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed left-0 top-0 right-0 bottom-0 w-full h-full bg-black/50 flex items-center justify-center z-50">
           <Card className="w-full max-w-md mx-4">
             <CardHeader>
               <CardTitle className="text-xl text-center text-green-600">Success!</CardTitle>
@@ -626,7 +625,7 @@ function CodaCallsContent() {
                       placeholder="Enter duration in minutes"
                       className="w-full p-2 border rounded dark:bg-slate-800"
                       min="1"
-                      max="120"
+                      max="300"
                       tabIndex={0}
                       disabled={isSqueezed}
                     />
