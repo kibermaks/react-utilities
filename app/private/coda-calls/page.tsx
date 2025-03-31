@@ -646,7 +646,7 @@ function CodaCallsContent() {
                       role="radio"
                       disabled={isSqueezed}
                       aria-checked={star === callData.rating}
-                      className={`text-2xl focus:outline-none ${isSqueezed ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      className={`text-2xl focus:outline-hidden ${isSqueezed ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       {star <= callData.rating ? '★' : '☆'}
                     </button>

@@ -14,7 +14,7 @@ export function Header({ title, showBack = true, icon, pages = [] }: HeaderProps
   const [showDropdown, setShowDropdown] = useState(false)
 
   return (
-    <header className="bg-white dark:bg-slate-800 shadow-sm mb-8">
+    <header className="bg-white dark:bg-slate-800 shadow-xs mb-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         <div className="flex items-center space-x-4">
           {showBack && (

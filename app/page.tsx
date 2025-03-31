@@ -54,7 +54,7 @@ export default async function StartPage() {
                 >
                   <Link 
                     href={`/${page}`}
-                    className="flex items-center space-x-3 p-3 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-slate-100 dark:focus:bg-slate-700"
+                    className="flex items-center space-x-3 p-3 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:bg-slate-100 dark:focus:bg-slate-700"
                     data-page-index={index}
                   >
                     <IconComponent className="w-5 h-5 text-blue-500 group-hover:scale-110 transition-transform" />
