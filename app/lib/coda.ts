@@ -106,7 +106,9 @@ export async function createCodaRow(data: {
       ],
     };
 
-    console.log('Coda API Request Body:', JSON.stringify(requestBody, null, 2));
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Coda API Request Body:', JSON.stringify(requestBody, null, 2));
+    }
 
     const response = await fetch(
       `https://coda.io/apis/v1/docs/${CODA_DOC_ID}/tables/${CODA_TABLE_ID}/rows`,

@@ -306,23 +306,24 @@ function CodaCallsContent() {
         throw new Error("Missing access secret");
       }
 
+      // Prepare submission data with Skip defaults if needed
+      const submissionData = {
+        ...callData,
+        ...(callData.callType === 'Skip' ? {
+          duration: 5,
+          rating: 5,
+          way: 'Voice',
+          comments: ''
+        } : {})
+      };
+
       if (!isDebug) {
         await createCodaRow(
-          {
-            name: callData.name,
-            duration: callData.duration,
-            rating: callData.rating,
-            comments: callData.comments,
-            dateTime: callData.dateTime,
-            callType: callData.callType,
-            rowId: callData.rowId,
-            eventId: callData.eventId,
-            way: callData.way,
-          },
+          submissionData,
           accessSecret
         );
       } else {
-        console.log('Debug mode: Would send data:', callData);
+        console.log('Debug mode: Would send data:', submissionData);
       }
 
       // Store the logged occasion if occasionId exists
@@ -551,71 +552,75 @@ function CodaCallsContent() {
                 </div>
 
                 {/* Way Section */}
-                <div className="space-y-2">
-                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Way of Communication</h3>
-                  <div className="flex" role="radiogroup" aria-label="Way">
-                    {([
-                      { value: 'Voice', label: '🎙️ Voice' },
-                      { value: 'Messenger', label: '💬 Messenger' },
-                      { value: 'Video', label: '📹 Video' },
-                      { value: 'In person', label: '👥 In&nbsp;person' }
-                    ] as Array<{ value: 'Voice' | 'Messenger' | 'Video' | 'In person', label: string }>).map((way, index) => (
-                      <button
-                        key={way.value}
-                        onClick={() => handleWayChange(way.value)}
-                        tabIndex={0}
-                        role="radio"
-                        aria-checked={callData.way === way.value}
-                        disabled={isSqueezed}
-                        className={`flex-1 py-2 px-4 text-sm font-medium transition-colors ${
-                          index === 0 ? 'rounded-l-lg' : ''
-                        } ${
-                          index === 3 ? 'rounded-r-lg' : ''
-                        } ${
-                          callData.way === way.value
-                            ? 'bg-blue-500 text-white'
-                            : 'bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700'
-                        } border ${
-                          index === 0 ? 'border-r-0' : ''
-                        } ${
-                          index === 3 ? 'border-l-0' : ''
-                        } ${isSqueezed ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        dangerouslySetInnerHTML={{ __html: way.label }}
-                      />
-                    ))}
+                {callData.callType !== 'Skip' && (
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Way of Communication</h3>
+                    <div className="flex" role="radiogroup" aria-label="Way">
+                      {([
+                        { value: 'Voice', label: '🎙️ Voice' },
+                        { value: 'Messenger', label: '💬 Messenger' },
+                        { value: 'Video', label: '📹 Video' },
+                        { value: 'In person', label: '👥 In&nbsp;person' }
+                      ] as Array<{ value: 'Voice' | 'Messenger' | 'Video' | 'In person', label: string }>).map((way, index) => (
+                        <button
+                          key={way.value}
+                          onClick={() => handleWayChange(way.value)}
+                          tabIndex={0}
+                          role="radio"
+                          aria-checked={callData.way === way.value}
+                          disabled={isSqueezed}
+                          className={`flex-1 py-2 px-4 text-sm font-medium transition-colors ${
+                            index === 0 ? 'rounded-l-lg' : ''
+                          } ${
+                            index === 3 ? 'rounded-r-lg' : ''
+                          } ${
+                            callData.way === way.value
+                              ? 'bg-blue-500 text-white'
+                              : 'bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700'
+                          } border ${
+                            index === 0 ? 'border-r-0' : ''
+                          } ${
+                            index === 3 ? 'border-l-0' : ''
+                          } ${isSqueezed ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          dangerouslySetInnerHTML={{ __html: way.label }}
+                        />
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Duration Section */}
-                <div className="space-y-2">
-                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Duration (minutes)</h3>
-                  <div className="grid grid-cols-3 gap-2" role="group" aria-label="Duration">
-                    {[1, 3, 5, 10, 20, 30, 45, 60, 'custom'].map((minutes) => (
-                      <button
-                        key={minutes}
-                        onClick={() => handleDurationClick(minutes as number | 'custom')}
-                        tabIndex={0}
-                        role="radio"
-                        disabled={isSqueezed}
-                        aria-checked={
-                          (minutes === 'custom' && showCustomDuration) || 
-                          (typeof minutes === 'number' && callData.duration === minutes)
-                        }
-                        className={`p-3 rounded-lg border transition-colors whitespace-nowrap ${
-                          (minutes === 'custom' && showCustomDuration) || 
-                          (typeof minutes === 'number' && callData.duration === minutes)
-                            ? 'bg-blue-500 text-white border-blue-600'
-                            : 'bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700'
-                        } ${isSqueezed ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      >
-                        {minutes === 'custom' ? 'Custom' : `${minutes} min${minutes === 1 ? '' : 's'}`}
-                      </button>
-                    ))}
+                {callData.callType !== 'Skip' && (
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Duration (minutes)</h3>
+                    <div className="grid grid-cols-3 gap-2" role="group" aria-label="Duration">
+                      {[1, 3, 5, 10, 20, 30, 45, 60, 'custom'].map((minutes) => (
+                        <button
+                          key={minutes}
+                          onClick={() => handleDurationClick(minutes as number | 'custom')}
+                          tabIndex={0}
+                          role="radio"
+                          disabled={isSqueezed}
+                          aria-checked={
+                            (minutes === 'custom' && showCustomDuration) || 
+                            (typeof minutes === 'number' && callData.duration === minutes)
+                          }
+                          className={`p-3 rounded-lg border transition-colors whitespace-nowrap ${
+                            (minutes === 'custom' && showCustomDuration) || 
+                            (typeof minutes === 'number' && callData.duration === minutes)
+                              ? 'bg-blue-500 text-white border-blue-600'
+                              : 'bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700'
+                          } ${isSqueezed ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          {minutes === 'custom' ? 'Custom' : `${minutes} min${minutes === 1 ? '' : 's'}`}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Custom Duration Input */}
-                {showCustomDuration && (
+                {showCustomDuration && callData.callType !== 'Skip' && (
                   <div className="mt-2">
                     <input
                       ref={customDurationRef}
@@ -636,21 +641,23 @@ function CodaCallsContent() {
                 )}
 
                 {/* Rating Stars */}
-                <div className="flex justify-center space-x-2" role="group" aria-label="Rating">
-                  {[1, 2, 3, 4, 5, 6].map((star) => (
-                    <button
-                      key={star}
-                      onClick={() => handleRatingClick(star)}
-                      tabIndex={0}
-                      role="radio"
-                      disabled={isSqueezed}
-                      aria-checked={star === callData.rating}
-                      className={`text-2xl focus:outline-hidden ${isSqueezed ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                      {star <= callData.rating ? '★' : '☆'}
-                    </button>
-                  ))}
-                </div>
+                {callData.callType !== 'Skip' && (
+                  <div className="flex justify-center space-x-2" role="group" aria-label="Rating">
+                    {[1, 2, 3, 4, 5, 6].map((star) => (
+                      <button
+                        key={star}
+                        onClick={() => handleRatingClick(star)}
+                        tabIndex={0}
+                        role="radio"
+                        disabled={isSqueezed}
+                        aria-checked={star === callData.rating}
+                        className={`text-2xl focus:outline-hidden ${isSqueezed ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        {star <= callData.rating ? '★' : '☆'}
+                      </button>
+                    ))}
+                  </div>
+                )}
 
                 {/* DateTime Input */}
                 <div>
@@ -671,24 +678,26 @@ function CodaCallsContent() {
                 </div>
 
                 {/* Comments */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Comments
-                  </label>
-                  <textarea
-                    value={callData.comments}
-                    onChange={handleCommentsChange}
-                    className="w-full p-2 border rounded h-32 dark:bg-slate-800"
-                    placeholder="Add any notes about the call..."
-                    maxLength={1000}
-                    tabIndex={0}
-                    autoComplete="on"
-                    disabled={isSqueezed}
-                  />
-                  {validationErrors.comments && (
-                    <p className="text-red-500 text-sm mt-1">{validationErrors.comments}</p>
-                  )}
-                </div>
+                {callData.callType !== 'Skip' && (
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Comments
+                    </label>
+                    <textarea
+                      value={callData.comments}
+                      onChange={handleCommentsChange}
+                      className="w-full p-2 border rounded h-32 dark:bg-slate-800"
+                      placeholder="Add any notes about the call..."
+                      maxLength={1000}
+                      tabIndex={0}
+                      autoComplete="on"
+                      disabled={isSqueezed}
+                    />
+                    {validationErrors.comments && (
+                      <p className="text-red-500 text-sm mt-1">{validationErrors.comments}</p>
+                    )}
+                  </div>
+                )}
 
                 {/* Submit Button */}
                 <button
