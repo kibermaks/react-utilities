@@ -1,12 +1,14 @@
 'use client';
 
 import { createCodaRow, getCodaFriendsList } from '@/app/lib/coda';
+import { isOccasionLogged, markOccasionAsLogged } from '@/app/lib/kv';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Header } from '@/components/ui/header';
 import { ArrowUpDown, Phone, Search } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactConfetti from 'react-confetti';
+import { Toaster, toast } from 'sonner';
 
 interface CodaFriend {
   name: string;
@@ -126,10 +128,14 @@ function CodaCallsContent() {
           }
           if (!dateTime.includes('T')) {
             const now = new Date();
+            // Create date in local timezone
             dt.setHours(now.getHours());
             dt.setMinutes(now.getMinutes());
           }
-          parsedDateTime = dt.toISOString().slice(0, 16);
+          // Convert to ISO string and adjust for timezone to preserve local time
+          const tzOffset = dt.getTimezoneOffset() * 60000; // offset in milliseconds
+          const localISOTime = new Date(dt.getTime() - tzOffset).toISOString().slice(0, 16);
+          parsedDateTime = localISOTime;
         } catch (err) {
           console.error('Error parsing date:', err);
         }
@@ -171,11 +177,15 @@ function CodaCallsContent() {
 
       // Handle occasion checking only when both rowId and occasionId are provided
       if (rowId && occasionId) {
-        const loggedOccasions = JSON.parse(localStorage.getItem('loggedOccasions') || '{}');
-        const occasionHash = `${rowId}-${occasionId}`;
-        if (loggedOccasions[occasionHash]) {
-          setShowDuplicateModal(true);
-          return;
+        try {
+          const isLogged = await isOccasionLogged(rowId, occasionId);
+          if (isLogged) {
+            setShowDuplicateModal(true);
+            return;
+          }
+        } catch (err) {
+          console.error('Error checking occasion status:', err);
+          // Continue without blocking in case of Redis error
         }
       }
     };
@@ -301,6 +311,10 @@ function CodaCallsContent() {
       }
 
       setIsSubmitting(true);
+      toast.info('Saving your call log...', {
+        duration: 2000 // Long duration as we don't know how long the API call will take
+      });
+
       const accessSecret = searchParams.get('s') || searchParams.get('access_secret');
       if (!accessSecret) {
         throw new Error("Missing access secret");
@@ -322,16 +336,18 @@ function CodaCallsContent() {
           submissionData,
           accessSecret
         );
+
+        // Mark occasion as logged if it exists
+        if (submissionData.rowId && submissionData.occasionId) {
+          try {
+            await markOccasionAsLogged(submissionData.rowId, submissionData.occasionId);
+          } catch (err) {
+            console.error('Error marking occasion as logged:', err);
+            // Continue without blocking in case of Redis error
+          }
+        }
       } else {
         console.log('Debug mode: Would send data:', submissionData);
-      }
-
-      // Store the logged occasion if occasionId exists
-      if (callData.occasionId) {
-        const loggedOccasions = JSON.parse(localStorage.getItem('loggedOccasions') || '{}');
-        const occasionHash = `${callData.rowId}-${callData.occasionId}`;
-        loggedOccasions[occasionHash] = new Date().toISOString();
-        localStorage.setItem('loggedOccasions', JSON.stringify(loggedOccasions));
       }
 
       // Show success modal and confetti
@@ -346,7 +362,8 @@ function CodaCallsContent() {
       }, 5000);
 
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+      setError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -370,6 +387,7 @@ function CodaCallsContent() {
   if (error) {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+        <Toaster position="top-center" closeButton richColors />
         <Header title="Coda Calls" icon={<Phone className="w-6 h-6" />} />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
           <Card className="w-full max-w-2xl mx-auto">
@@ -384,6 +402,7 @@ function CodaCallsContent() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+      <Toaster position="top-center" closeButton richColors />
       {/* Friend Selection Modal */}
       {showFriendModal && (
         <div className="fixed left-0 top-0 right-0 bottom-0 w-full h-full bg-black/50 flex items-center justify-center z-50">
@@ -716,7 +735,7 @@ function CodaCallsContent() {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      Saving...
+                      Processing...
                     </>
                   ) : (
                     'Save to Coda'
