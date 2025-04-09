@@ -52,6 +52,7 @@ function CodaCallsContent() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSqueezed, setIsSqueezed] = useState(false);
+  const [isOccasionAlreadyLogged, setIsOccasionAlreadyLogged] = useState(false);
   const isDebug = searchParams.get('debug') === 'true';
   
   // Friend selection state
@@ -202,6 +203,7 @@ function CodaCallsContent() {
           const isLogged = await isOccasionLogged(rowId, occasionId);
           if (isLogged) {
             setShowDuplicateModal(true);
+            setIsOccasionAlreadyLogged(true);
             return;
           }
         } catch (err) {
@@ -406,7 +408,7 @@ function CodaCallsContent() {
   }, [isFormValid, isSubmitting, handleSubmit]);
 
   // Determine if the submit button should be disabled
-  const isButtonDisabled = !isFormValid || isSubmitting || isSqueezed || showDuplicateModal;
+  const isButtonDisabled = !isFormValid || isSubmitting || isSqueezed || isOccasionAlreadyLogged;
 
   if (error) {
     return (
