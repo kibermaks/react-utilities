@@ -113,48 +113,69 @@ function CodaCallsContent() {
         return;
       }
 
-      // Process all parameters first
+      // Function to get current local time as YYYY-MM-DDTHH:mm
+      const getCurrentLocalISOString = () => {
+          const now = new Date();
+          const tzOffset = now.getTimezoneOffset() * 60000; // offset in milliseconds
+          // Create Date object adjusted for local timezone, then convert to ISO and slice
+          return new Date(now.getTime() - tzOffset).toISOString().slice(0, 16);
+      };
+
+      // Handle date/time override
+      let finalDateTimeString: string;
+
+      if (dateTime) {
+        try {
+          // Check if only date is provided (no 'T')
+          if (!dateTime.includes('T')) {
+            const datePart = dateTime; // Assuming 'YYYY-MM-DD' format
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+                 throw new Error('Invalid date format (expected YYYY-MM-DD)');
+            }
+            const now = new Date(); // Get current local time
+            const hours = now.getHours().toString().padStart(2, '0');
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            // Construct YYYY-MM-DDTHH:mm string directly
+            finalDateTimeString = `${datePart}T${hours}:${minutes}`;
+          } else {
+            // dateTime includes 'T', parse and adjust to local YYYY-MM-DDTHH:mm
+            const dt = new Date(dateTime);
+            if (isNaN(dt.getTime())) {
+              throw new Error('Invalid date/time format');
+            }
+            const tzOffset = dt.getTimezoneOffset() * 60000;
+            finalDateTimeString = new Date(dt.getTime() - tzOffset).toISOString().slice(0, 16);
+          }
+        } catch (err) {
+          console.error('Error parsing date/time parameter:', err);
+          finalDateTimeString = getCurrentLocalISOString(); // Fallback to current local time
+        }
+      } else {
+         // No dateTime parameter, use current local time
+         finalDateTimeString = getCurrentLocalISOString();
+      }
+
+      // Process duration parameter
       const parsedDuration = duration ? parseInt(duration) : null;
       const standardDurations = [1, 3, 5, 10, 20, 30, 45, 60];
       const isCustomDuration = parsedDuration !== null && !standardDurations.includes(parsedDuration);
 
-      // Handle date/time override
-      let parsedDateTime = new Date().toISOString().slice(0, 16);
-      if (dateTime) {
-        try {
-          const dt = new Date(dateTime);
-          if (isNaN(dt.getTime())) {
-            throw new Error('Invalid date format');
-          }
-          if (!dateTime.includes('T')) {
-            const now = new Date();
-            // Create date in local timezone
-            dt.setHours(now.getHours());
-            dt.setMinutes(now.getMinutes());
-          }
-          // Convert to ISO string and adjust for timezone to preserve local time
-          const tzOffset = dt.getTimezoneOffset() * 60000; // offset in milliseconds
-          const localISOTime = new Date(dt.getTime() - tzOffset).toISOString().slice(0, 16);
-          parsedDateTime = localISOTime;
-        } catch (err) {
-          console.error('Error parsing date:', err);
-        }
-      }
-
-      // Update call data with all available parameters
+      // Update call data state
       setCallData(prev => ({
         ...prev,
         name: name ? decodeURIComponent(name) : prev.name,
         rowId: rowId || prev.rowId,
         callType: eventId ? 'Event' : (callType || prev.callType),
-        duration: parsedDuration || prev.duration,
+        // Use parsedDuration only if it's standard, otherwise keep default/previous
+        duration: (parsedDuration !== null && !isCustomDuration) ? parsedDuration : prev.duration,
         comments: comments ? decodeURIComponent(comments) : prev.comments,
         eventId: eventId || prev.eventId,
-        dateTime: parsedDateTime,
+        dateTime: finalDateTimeString, // Use the final processed string
         way: way || prev.way,
         occasionId: occasionId || prev.occasionId
       }));
 
+      // Set state for custom duration UI if needed
       if (isCustomDuration) {
         setShowCustomDuration(true);
         setCustomDuration(parsedDuration);
@@ -383,6 +404,9 @@ function CodaCallsContent() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isFormValid, isSubmitting, handleSubmit]);
+
+  // Determine if the submit button should be disabled
+  const isButtonDisabled = !isFormValid || isSubmitting || isSqueezed || showDuplicateModal;
 
   if (error) {
     return (
@@ -721,10 +745,10 @@ function CodaCallsContent() {
                 {/* Submit Button */}
                 <button
                   onClick={handleSubmit}
-                  disabled={!isFormValid || isSubmitting || isSqueezed}
+                  disabled={isButtonDisabled}
                   tabIndex={0}
                   className={`w-full py-3 rounded-lg transition-colors flex items-center justify-center ${
-                    isFormValid && !isSubmitting && !isSqueezed
+                    !isButtonDisabled
                       ? 'bg-blue-500 text-white hover:bg-blue-600'
                       : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   }`}
