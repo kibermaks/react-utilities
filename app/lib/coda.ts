@@ -65,13 +65,15 @@ export async function getCodaData(name: string | null, rowId: string | null) {
 export async function createCodaRow(data: {
   name: string;
   duration: number;
-  rating: number;
+  rating?: number;
   comments: string;
   dateTime: string;
   callType: string;
   rowId: string;
-  eventId: string;
+  eventId?: string;
   way: string;
+  nextCallTime?: string;
+  daysUntilNextCall?: number;
 }, accessSecret: string | null) {
   try {
     console.log('Creating Coda row with data:', data, 'and access secret:', accessSecret);
@@ -101,6 +103,8 @@ export async function createCodaRow(data: {
             { column: 'c-4ji9x8bZNi', value: CALL_TYPE_MAPPING[data.callType] || data.callType }, //Call Type
             { column: 'c-6_YyLAPw9n', value: data.way }, //Way
             ...(data.eventId ? [{ column: 'c-bwZcHIUpy-', value: data.eventId }] : []), //Event ID
+            ...(data.nextCallTime ? [{ column: 'c-bwIAb6eCAJ', value: data.nextCallTime }] : []), // Next Call Override (Date)
+            ...(data.daysUntilNextCall !== null && data.daysUntilNextCall !== undefined ? [{ column: 'c-vGoAv9sNJE', value: data.daysUntilNextCall }] : []), // Days Until Next Call
           ],
         },
       ],

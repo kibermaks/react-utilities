@@ -4,7 +4,7 @@ import { createCodaRow, getCodaFriendsList } from '@/app/lib/coda';
 import { isOccasionLogged, markOccasionAsLogged } from '@/app/lib/kv';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Header } from '@/components/ui/header';
-import { ArrowUpDown, Phone, Search } from 'lucide-react';
+import { ArrowUpDown, Phone, Search, Settings } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactConfetti from 'react-confetti';
@@ -55,12 +55,19 @@ function CodaCallsContent() {
   const [isOccasionAlreadyLogged, setIsOccasionAlreadyLogged] = useState(false);
   const isDebug = searchParams.get('debug') === 'true';
   
+  // Advanced Options State
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+  const [advancedOption, setAdvancedOption] = useState<'nextDaytime' | 'daysUntil' | null>(null);
+  const [nextDaytimeValue, setNextDaytimeValue] = useState<string | null>(null);
+  const [daysUntilValue, setDaysUntilValue] = useState<number | null>(null);
+
   // Friend selection state
   const [friends, setFriends] = useState<CodaFriend[]>([]);
   const [sortOrder, setSortOrder] = useState<'alphabetical' | 'frequency'>('frequency');
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoadingFriends, setIsLoadingFriends] = useState(false);
   const [showFriendModal, setShowFriendModal] = useState(false);
+  const [isTextareaFocused, setIsTextareaFocused] = useState(false);
 
   const [callData, setCallData] = useState<CallData>({
     name: '',
@@ -245,13 +252,15 @@ function CodaCallsContent() {
       isValid = false;
     }
 
-    if (callData.duration <= 0) {
-      errors.duration = 'Duration must be greater than 0';
-      isValid = false;
-    }
-    else if (callData.duration > 300) {
-      errors.duration = 'Duration must be less or equal to 300 minutes';
-      isValid = false;
+    if (callData.callType !== 'Skip') {
+      if (callData.duration <= 0) {
+        errors.duration = 'Duration must be greater than 0';
+        isValid = false;
+      }
+      else if (callData.duration > 300) {
+        errors.duration = 'Duration must be less or equal to 300 minutes';
+        isValid = false;
+      }
     }
 
     if (!callData.dateTime) {
@@ -266,14 +275,22 @@ function CodaCallsContent() {
       }
     }
 
-    if (callData.comments.length > 10000) {
+    if (callData.callType !== 'Skip' && callData.comments.length > 10000) {
       errors.comments = 'Comments cannot exceed 10000 characters';
+      isValid = false;
+    }
+
+    // Advanced options validation
+    if (advancedOption === 'nextDaytime' && !nextDaytimeValue) {
+      isValid = false;
+    }
+    if (advancedOption === 'daysUntil' && (daysUntilValue === null || daysUntilValue < 0)) {
       isValid = false;
     }
 
     setValidationErrors(errors);
     return isValid;
-  }, [callData]);
+  }, [callData, advancedOption, nextDaytimeValue, daysUntilValue]);
 
   useEffect(() => {
     const isValid = validateForm();
@@ -327,6 +344,29 @@ function CodaCallsContent() {
     setCallData(prev => ({ ...prev, way }));
   }, []);
 
+  const handleAdvancedOptionChange = useCallback((option: 'nextDaytime' | 'daysUntil' | null) => {
+    setAdvancedOption(option);
+    // Reset the other value when switching
+    if (option === 'nextDaytime') {
+      setDaysUntilValue(null);
+    } else if (option === 'daysUntil') {
+      setNextDaytimeValue(null);
+    } else {
+        setDaysUntilValue(null);
+        setNextDaytimeValue(null);
+    }
+  }, []);
+
+  const handleNextDaytimeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setNextDaytimeValue(e.target.value);
+  }, []);
+
+  const handleDaysUntilChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value === '' ? null : parseInt(e.target.value);
+    // Add basic validation for daysUntilValue if needed, e.g., min/max
+    setDaysUntilValue(value);
+  }, []);
+
   const handleSubmit = useCallback(async () => {
     try {
       if (!isFormValid) {
@@ -351,7 +391,10 @@ function CodaCallsContent() {
           rating: 5,
           way: 'Voice',
           comments: ''
-        } : {})
+        } : {}),
+        // Add advanced options if selected
+        ...(advancedOption === 'nextDaytime' && nextDaytimeValue ? { nextCallTime: nextDaytimeValue } : {}),
+        ...(advancedOption === 'daysUntil' && daysUntilValue !== null ? { daysUntilNextCall: daysUntilValue } : {})
       };
 
       if (!isDebug) {
@@ -378,11 +421,11 @@ function CodaCallsContent() {
       setShowConfetti(true);
       setIsSqueezed(true);
 
-      // Close the window after a delay
+      // Close the window after a 3-second delay
       setTimeout(() => {
         setShowConfetti(false);
         window.close();
-      }, 5000);
+      }, 3000); // Reduced from 5000
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An error occurred';
@@ -390,7 +433,7 @@ function CodaCallsContent() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [isFormValid, callData, searchParams, isDebug]);
+  }, [isFormValid, callData, searchParams, isDebug, advancedOption, nextDaytimeValue, daysUntilValue]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -406,6 +449,21 @@ function CodaCallsContent() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isFormValid, isSubmitting, handleSubmit]);
+
+  // Auto-close when duplicate modal is shown
+  useEffect(() => {
+    let timerId: NodeJS.Timeout | null = null;
+    if (showDuplicateModal) {
+      timerId = setTimeout(() => {
+        window.close();
+      }, 3000); // Close after 3 seconds
+    }
+    return () => {
+      if (timerId) {
+        clearTimeout(timerId);
+      }
+    };
+  }, [showDuplicateModal]);
 
   // Determine if the submit button should be disabled
   const isButtonDisabled = !isFormValid || isSubmitting || isSqueezed || isOccasionAlreadyLogged;
@@ -537,7 +595,7 @@ function CodaCallsContent() {
       )}
 
       <Header title="Coda Calls" icon={<Phone className="w-6 h-6" />} />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
+      <main className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8 transition-all duration-200 ${isTextareaFocused ? 'pb-48 md:pb-8' : ''}`}>
         <Card className={`w-full max-w-2xl mx-auto transition-all duration-500 ${isSqueezed ? 'scale-95' : 'scale-100'}`}>
           <CardContent className="p-8">
             {isSqueezed ? (
@@ -570,11 +628,11 @@ function CodaCallsContent() {
                         role="radio"
                         aria-checked={callData.callType === type}
                         disabled={isSqueezed}
-                        className={`flex-1 py-2 px-4 text-sm font-medium transition-colors whitespace-nowrap ${
+                        className={`flex-1 py-2 px-3 sm:px-4 text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
                           index === 0 ? 'rounded-l-lg' : ''
-                        } ${
-                          index === 3 ? 'rounded-r-lg' : ''
-                        } ${
+                        } ${ 
+                          index === (callData.eventId ? 3 : 3) ? 'rounded-r-lg' : ''
+                        } ${ 
                           callData.callType === type
                             ? type === 'Regular'
                               ? 'bg-gray-500 text-white'
@@ -584,10 +642,8 @@ function CodaCallsContent() {
                                   ? 'bg-green-500 text-white'
                                   : 'bg-red-500 text-white'
                             : 'bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700'
-                        } border ${
-                          index === 0 ? 'border-r-0' : ''
-                        } ${
-                          index === 3 ? 'border-l-0' : ''
+                        } border ${ 
+                          index > 0 ? 'border-l-0' : ''
                         } ${isSqueezed ? 'opacity-50 cursor-not-allowed' : ''}`}
                       >
                         {type}
@@ -614,18 +670,16 @@ function CodaCallsContent() {
                           role="radio"
                           aria-checked={callData.way === way.value}
                           disabled={isSqueezed}
-                          className={`flex-1 py-2 px-4 text-sm font-medium transition-colors ${
+                          className={`flex-1 py-2 px-3 sm:px-4 text-xs sm:text-sm font-medium transition-colors ${
                             index === 0 ? 'rounded-l-lg' : ''
-                          } ${
+                          } ${ 
                             index === 3 ? 'rounded-r-lg' : ''
-                          } ${
+                          } ${ 
                             callData.way === way.value
                               ? 'bg-blue-500 text-white'
                               : 'bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700'
-                          } border ${
-                            index === 0 ? 'border-r-0' : ''
-                          } ${
-                            index === 3 ? 'border-l-0' : ''
+                          } border ${ 
+                            index > 0 ? 'border-l-0' : ''
                           } ${isSqueezed ? 'opacity-50 cursor-not-allowed' : ''}`}
                           dangerouslySetInnerHTML={{ __html: way.label }}
                         />
@@ -706,9 +760,20 @@ function CodaCallsContent() {
 
                 {/* DateTime Input */}
                 <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Date and Time
-                  </label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium">
+                      Date and Time
+                    </label>
+                    <button
+                      onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
+                      className={`p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 ${isAdvancedOpen ? 'bg-gray-200 dark:bg-gray-700' : ''} ${isSqueezed ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      aria-label="Advanced Options"
+                      aria-expanded={isAdvancedOpen}
+                      disabled={isSqueezed}
+                    >
+                      <Settings className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                    </button>
+                  </div>
                   <input
                     type="datetime-local"
                     value={callData.dateTime}
@@ -722,6 +787,76 @@ function CodaCallsContent() {
                   )}
                 </div>
 
+                {/* Advanced Options Collapsible Section */}
+                {isAdvancedOpen && (
+                  <div className="mt-4 p-4 border rounded dark:border-gray-700 space-y-4">
+                    <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-3">Override default next call schedule:</div>
+                    <div className="space-y-3">
+                       {/* Option: None (Default) */}
+                      <label className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="advancedOption"
+                          value="none"
+                          checked={advancedOption === null}
+                          onChange={() => handleAdvancedOptionChange(null)}
+                          disabled={isSqueezed}
+                          className="form-radio h-4 w-4 text-blue-600"
+                        />
+                        <span className="text-sm">Use Default Schedule</span>
+                      </label>
+
+                       {/* Option: Next Date */}
+                      <label className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="advancedOption"
+                          value="nextDaytime"
+                          checked={advancedOption === 'nextDaytime'}
+                          onChange={() => handleAdvancedOptionChange('nextDaytime')}
+                          disabled={isSqueezed}
+                          className="form-radio h-4 w-4 text-blue-600"
+                        />
+                        <span className="text-sm">Set Specific Next Call Date</span>
+                      </label>
+                      {advancedOption === 'nextDaytime' && (
+                        <input
+                          type="date"
+                          value={nextDaytimeValue || ''}
+                          onChange={handleNextDaytimeChange}
+                          className="w-full p-2 border rounded dark:bg-slate-800 ml-6 text-sm max-w-[calc(100%-1.5rem)]"
+                          disabled={isSqueezed}
+                        />
+                      )}
+
+                       {/* Option: Days Until */}
+                      <label className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="advancedOption"
+                          value="daysUntil"
+                          checked={advancedOption === 'daysUntil'}
+                          onChange={() => handleAdvancedOptionChange('daysUntil')}
+                          disabled={isSqueezed}
+                          className="form-radio h-4 w-4 text-blue-600"
+                        />
+                        <span className="text-sm">Set Days Until Next Call</span>
+                      </label>
+                      {advancedOption === 'daysUntil' && (
+                        <input
+                          type="number"
+                          value={daysUntilValue?.toString() || ''}
+                          onChange={handleDaysUntilChange}
+                          placeholder="Enter number of days"
+                          className="w-full p-2 border rounded dark:bg-slate-800 ml-6 text-sm max-w-[calc(100%-1.5rem)]"
+                          min="0"
+                          disabled={isSqueezed}
+                        />
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Comments */}
                 {callData.callType !== 'Skip' && (
                   <div>
@@ -731,6 +866,8 @@ function CodaCallsContent() {
                     <textarea
                       value={callData.comments}
                       onChange={handleCommentsChange}
+                      onFocus={() => setIsTextareaFocused(true)}
+                      onBlur={() => setIsTextareaFocused(false)}
                       className="w-full p-2 border rounded h-32 dark:bg-slate-800"
                       placeholder="Add any notes about the call..."
                       maxLength={1000}
