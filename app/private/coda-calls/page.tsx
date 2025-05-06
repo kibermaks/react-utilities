@@ -658,11 +658,11 @@ function CodaCallsContent() {
                     <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Way of Communication</h3>
                     <div className="flex" role="radiogroup" aria-label="Way">
                       {([
-                        { value: 'Voice', label: '🎙️ Voice' },
-                        { value: 'Messenger', label: '💬 Messenger' },
-                        { value: 'Video', label: '📹 Video' },
-                        { value: 'In person', label: '👥 In&nbsp;person' }
-                      ] as Array<{ value: 'Voice' | 'Messenger' | 'Video' | 'In person', label: string }>).map((way, index) => (
+                        { value: 'Voice', emoji: '🎙️', text: 'Voice' },
+                        { value: 'Messenger', emoji: '💬', text: 'Messenger' },
+                        { value: 'Video', emoji: '📹', text: 'Video' },
+                        { value: 'In person', emoji: '👥', text: 'In person' }
+                      ] as Array<{ value: 'Voice' | 'Messenger' | 'Video' | 'In person', emoji: string, text: string }>).map((way, index) => (
                         <button
                           key={way.value}
                           onClick={() => handleWayChange(way.value)}
@@ -670,7 +670,7 @@ function CodaCallsContent() {
                           role="radio"
                           aria-checked={callData.way === way.value}
                           disabled={isSqueezed}
-                          className={`flex-1 py-2 px-3 sm:px-4 text-xs sm:text-sm font-medium transition-colors ${
+                          className={`flex-1 py-3 px-3 sm:px-4 font-medium transition-colors flex flex-col items-center justify-center ${ // Adjusted padding and added flex for vertical layout
                             index === 0 ? 'rounded-l-lg' : ''
                           } ${ 
                             index === 3 ? 'rounded-r-lg' : ''
@@ -681,8 +681,10 @@ function CodaCallsContent() {
                           } border ${ 
                             index > 0 ? 'border-l-0' : ''
                           } ${isSqueezed ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          dangerouslySetInnerHTML={{ __html: way.label }}
-                        />
+                        >
+                          <span aria-hidden="true" className="text-lg">{way.emoji}</span>
+                          <span className="mt-1 text-xs sm:text-sm">{way.text}</span>
+                        </button>
                       ))}
                     </div>
                   </div>
